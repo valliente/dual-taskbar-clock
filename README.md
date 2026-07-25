@@ -15,8 +15,10 @@ A sleek, glassmorphic desktop application for Windows that displays dual timezon
 
 ## Installation
 
-Download the `DualTaskbarClock.exe` from the GitHub Releases page and run it. 
-No installation required!
+1. Download the `DualTaskbarClock_v0.1.3.zip` from the GitHub Releases page.
+2. Extract the folder to a safe location on your computer (e.g., `C:\Program Files\DualTaskbarClock`).
+3. Run `DualTaskbarClock.exe` inside the extracted folder.
+No complex installation required, and this directory-based format prevents false-positive virus detections!
 
 ## Building from source
 
