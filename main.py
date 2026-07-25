@@ -13,7 +13,7 @@ from PySide6.QtGui import QColor, QFont, QPainter, QBrush, QPen, QAction, QCurso
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel,
                                QMenu, QDialog, QFormLayout, QComboBox, QPushButton,
                                QColorDialog, QFontDialog, QCheckBox, QHBoxLayout,
-                               QFrame)
+                               QFrame, QSlider, QSizeGrip)
 
 SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "clock_settings.json")
 APP_NAME = "DualTaskbarClock"
@@ -40,6 +40,10 @@ def get_settings():
         "primary_color": "#FFFFFF",
         "secondary_color": "#60A5FA",
         "bg_color": "rgba(15, 23, 42, 217)",
+        "opacity": 1.0,
+        "show_date": True,
+        "show_secondary": True,
+        "always_on_top": True,
         "font_family": "Segoe UI Variable Display" if "Segoe UI Variable Display" in QFontDatabase.families() else "Arial",
         "font_size": 28,
         "run_on_startup": False
@@ -110,6 +114,25 @@ class SettingsDialog(QDialog):
         self.bg_btn.clicked.connect(lambda: self.choose_color("bg_color", self.bg_btn))
         layout.addRow("Background Color:", self.bg_btn)
         
+        # Date, Secondary, On Top
+        self.show_date_cb = QCheckBox("Show Date")
+        self.show_date_cb.setChecked(self.settings.get("show_date", True))
+        layout.addRow("Display:", self.show_date_cb)
+        
+        self.show_sec_cb = QCheckBox("Show Secondary Timezone")
+        self.show_sec_cb.setChecked(self.settings.get("show_secondary", True))
+        layout.addRow("", self.show_sec_cb)
+        
+        self.on_top_cb = QCheckBox("Always on Top")
+        self.on_top_cb.setChecked(self.settings.get("always_on_top", True))
+        layout.addRow("Window:", self.on_top_cb)
+
+        # Opacity Slider
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(20, 100)
+        self.opacity_slider.setValue(int(self.settings.get("opacity", 1.0) * 100))
+        layout.addRow("Opacity:", self.opacity_slider)
+        
         # Themes
         self.theme_cb = QComboBox()
         self.theme_cb.addItems(["Custom"] + list(THEMES.keys()))
@@ -118,7 +141,7 @@ class SettingsDialog(QDialog):
         
         # Startup
         self.startup_cb = QCheckBox("Run at Windows Startup")
-        self.startup_cb.setChecked(self.settings["run_on_startup"])
+        self.startup_cb.setChecked(self.settings.get("run_on_startup", False))
         layout.addRow("Startup:", self.startup_cb)
         
         # Buttons
@@ -183,6 +206,10 @@ class SettingsDialog(QDialog):
         self.settings["secondary_tz"] = self.tz2_cb.currentText()
         self.settings["use_12h"] = self.format_cb.isChecked()
         self.settings["run_on_startup"] = self.startup_cb.isChecked()
+        self.settings["show_date"] = self.show_date_cb.isChecked()
+        self.settings["show_secondary"] = self.show_sec_cb.isChecked()
+        self.settings["always_on_top"] = self.on_top_cb.isChecked()
+        self.settings["opacity"] = self.opacity_slider.value() / 100.0
         return self.settings
 
 class ClockWidget(QWidget):
@@ -190,8 +217,12 @@ class ClockWidget(QWidget):
         super().__init__()
         self.settings = get_settings()
         
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        flags = Qt.FramelessWindowHint | Qt.Tool
+        if self.settings.get("always_on_top", True):
+            flags |= Qt.WindowStaysOnTopHint
+        self.setWindowFlags(flags)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowOpacity(self.settings.get("opacity", 1.0))
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(20, 15, 20, 15)
@@ -199,9 +230,18 @@ class ClockWidget(QWidget):
         
         self.primary_label = QLabel()
         self.secondary_label = QLabel()
+        self.date_label = QLabel()
         
         self.layout.addWidget(self.primary_label)
         self.layout.addWidget(self.secondary_label)
+        self.layout.addWidget(self.date_label)
+        
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
+        self.size_grip = QSizeGrip(self)
+        self.size_grip.setFixedSize(16, 16)
+        bottom_layout.addWidget(self.size_grip)
+        self.layout.addLayout(bottom_layout)
         
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time)
@@ -219,12 +259,26 @@ class ClockWidget(QWidget):
     def apply_settings(self):
         font_prim = QFont(self.settings["font_family"], self.settings["font_size"], QFont.Bold)
         font_sec = QFont(self.settings["font_family"], max(10, self.settings["font_size"] - 8))
+        font_date = QFont(self.settings["font_family"], max(10, self.settings["font_size"] - 12))
         
         self.primary_label.setFont(font_prim)
         self.primary_label.setStyleSheet(f"color: {self.settings['primary_color']};")
         
         self.secondary_label.setFont(font_sec)
         self.secondary_label.setStyleSheet(f"color: {self.settings['secondary_color']};")
+        self.secondary_label.setVisible(self.settings.get("show_secondary", True))
+        
+        self.date_label.setFont(font_date)
+        self.date_label.setStyleSheet(f"color: {self.settings['secondary_color']};")
+        self.date_label.setVisible(self.settings.get("show_date", True))
+        
+        flags = Qt.FramelessWindowHint | Qt.Tool
+        if self.settings.get("always_on_top", True):
+            flags |= Qt.WindowStaysOnTopHint
+        self.setWindowFlags(flags)
+        
+        self.setWindowOpacity(self.settings.get("opacity", 1.0))
+        self.show()
         
         self.update() # triggers paintEvent for background
 
@@ -269,6 +323,8 @@ class ClockWidget(QWidget):
         offset_str = self.get_offset_string(s_tz)
         
         self.secondary_label.setText(f"{s_tz}: {s_str}{offset_str}")
+        
+        self.date_label.setText(datetime.now().strftime("%A, %B %d, %Y"))
         
     def paintEvent(self, event):
         painter = QPainter(self)

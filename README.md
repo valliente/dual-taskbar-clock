@@ -8,7 +8,10 @@ A sleek, glassmorphic desktop application for Windows that displays dual timezon
 - **Highly Customizable**: Right-click to customize colors, fonts, timezones, and time format.
 - **Preset Themes**: Includes "Glass Dark", "OLED Black", "Cyberpunk Neon", and "Minimal Frost" themes.
 - **Auto-Startup**: Run at Windows startup via the Settings menu.
-- **Drag-and-Drop**: Smooth click and drag to reposition anywhere on the screen.
+- **Drag-and-Drop & Resizable**: Smooth click and drag to reposition anywhere on the screen, and resize via the bottom right grip.
+- **Opacity Control**: Adjust the transparency of the glassmorphism UI.
+- **Always on Top Toggle**: Pin or unpin the clock above all other windows.
+- **Date & Compact Mode**: Toggle the current date and secondary timezone on or off.
 
 ## Installation
 
